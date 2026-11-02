@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#172339"><title>Planta Simples — Desenho em escala</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#172339;background:#f2f5f9}
+*{box-sizing:border-box}body{margin:0}
+header{background:#172339;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h1{font-size:18px;margin:0}small{color:#b9d3e9}button,select,input{font:inherit}
+button{border:1px solid #cbd5e1;border-radius:10px;background:white;padding:9px 11px;color:#172339;cursor:pointer}
+button.active{background:#2367c7;color:#fff;border-color:#2367c7}button:active{transform:translateY(1px)}
+.bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.toolbar{background:#fff;border-bottom:1px solid #d9e1ec;padding:10px 13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tool-label{font-size:12px;color:#475569;font-weight:700}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 320px;min-height:calc(100dvh - 145px)}
+.canvas-wrap{position:relative;min-height:65dvh;overflow:hidden;touch-action:none;background:#fdfefe}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.hint{position:absolute;bottom:12px;left:12px;background:#ffffffed;border:1px solid #dce3ed;border-radius:10px;padding:9px 11px;font-size:12px;max-width:calc(100% - 24px);pointer-events:none}
+aside{padding:15px;border-left:1px solid #dce3ed;background:#fff;overflow:auto}
+aside h2{font-size:15px;margin:0 0 10px}aside p{font-size:13px;line-height:1.5;color:#4b5563}
+label{font-size:13px;display:block;margin-bottom:7px}select,input[type=number]{padding:8px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;max-width:100%}
+.measure{font-size:13px;padding:9px 11px;border-radius:8px;background:#eaf1fa;font-variant-numeric:tabular-nums}
+.secondary{font-size:12px;color:#667085}.divider{height:1px;background:#e2e8f0;margin:15px 0}#fileInput{display:none}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:#eef4fb;border:1px solid #d5e2f0;border-radius:999px;padding:5px 9px;margin-bottom:8px}
+.library-toggle{display:none}
+.library{display:flex;flex-direction:column;gap:12px}
+.category{border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#fafcff}
+.category h3{margin:0 0 8px;font-size:13px;color:#334155}
+.item-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.item-btn{text-align:left;padding:10px;border-radius:11px;border:1px solid #d8e1eb;background:#fff;min-height:64px}
+.item-btn .name{display:block;font-size:13px;font-weight:700;color:#1e293b}
+.item-btn .size{display:block;font-size:11px;color:#64748b;margin-top:4px;line-height:1.35}
+.item-btn.active{background:#e8f1fe;border-color:#2367c7;color:#172339}
+.kbd{font-size:11px;color:#475569;background:#eef2f7;border:1px solid #d8e0e8;border-radius:6px;padding:3px 6px;display:inline-block}
+.inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:1050px){.work{grid-template-columns:1fr}.canvas-wrap{height:62dvh;min-height:420px}aside{border-left:none;border-top:1px solid #dce3ed}.library-toggle{display:inline-flex}}
+@media(max-width:850px){.toolbar{gap:5px}button{padding:8px 9px;font-size:13px}.item-grid{grid-template-columns:1fr 1fr}}
+.hidden-mobile{display:block}
+@media(max-width:1050px){aside.collapsed{display:none}.hidden-mobile{display:none}}
+</style></head><body>
+<header><div><h1>▦ Planta Simples</h1><small>Feito para iPad e Apple Pencil · Grade de 1 × 1 m</small></div><div class="bar"><button id="newBtn">Nova planta</button><button id="saveBtn">Salvar arquivo</button><button id="loadBtn">Abrir arquivo</button><button id="pngBtn">Exportar imagem</button><button id="dxfBtn">Exportar DXF (CorelDRAW)</button><button id="toggleLibrary" class="library-toggle">📁 Itens</button><input type="file" id="fileInput" accept=".json,application/json"></div></header>
+<div class="toolbar"><span class="tool-label">DESENHAR</span><button class="active" data-tool="wall">▥ Parede</button><button data-tool="door">◜ Porta</button><button data-tool="window">▭ Janela</button><button data-tool="select">↖ Selecionar/mover</button><button data-tool="multi">▱ Seleção múltipla</button><button id="copyGroupBtn">⧉ Copiar seleção</button><button id="moveGroupBtn">↔ Mover seleção</button><span class="tool-label">EDITAR</span><button id="rotateBtn">↻ Girar 90°</button><button id="removeBtn">⌫ Apagar item</button><button id="undoBtn">↶ Desfazer</button><span class="tool-label hidden-mobile">BIBLIOTECA</span><span class="pill hidden-mobile" id="currentObjectLabel">Nenhum item da biblioteca selecionado</span></div>
+<div class="work"><section class="canvas-wrap"><canvas id="plan"></canvas><div class="hint" id="hint">Parede: toque com a Pencil no início e no fim. Cada quadrado maior = 1,00 m. A parede tem 15 cm de espessura.</div></section><aside id="libraryPanel"><h2>Biblioteca lateral de itens</h2><p>Escolha um item em <b>escala real</b>. Depois, toque com a Apple Pencil na planta para posicioná-lo. Para remover, selecione o item e use <b>Apagar item</b>.</p><div class="pill">1 quadrado maior = 1,00 × 1,00 m</div><div class="measure" id="measure">Nenhum item selecionado.</div><div id="sizeEditor" style="display:none;margin-top:12px;padding:12px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc"><strong style="font-size:14px">Ajustar medidas do item</strong><p style="font-size:12px;margin:6px 0 10px">Valores reais em metros. Cada item pode ter seu próprio tamanho.</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><label>Largura (m)<input id="itemWidth" type="number" min="0.05" max="30" step="0.01" inputmode="decimal" style="width:100%"></label><label>Comprimento (m)<input id="itemHeight" type="number" min="0.05" max="30" step="0.01" inputmode="decimal" style="width:100%"></label></div><div class="inline-actions"><button id="applySizeBtn" class="active">Aplicar medidas</button><button id="resetSizeBtn">Tamanho padrão</button></div><div class="divider"></div><strong style="font-size:14px">Girar objeto</strong><div class="inline-actions" style="margin-top:8px"><button id="rotateLeftBtn">↶ −15°</button><button id="rotateRightBtn">↷ +15°</button><button id="rotate90Btn">↻ +90°</button></div><label style="margin-top:8px">Ângulo exato (graus)<input id="itemAngle" type="number" min="-360" max="360" step="1" inputmode="numeric" style="width:100%"></label><button id="applyAngleBtn" class="active">Aplicar ângulo</button></div><div class="divider"></div><label>Espessura da parede <select id="thickness"><option value="0.15" selected>15 cm (0,15 m)</option><option value="0.10">10 cm (0,10 m)</option><option value="0.20">20 cm (0,20 m)</option></select></label><label>Porta / janela <select id="openingSize"><option value="0.8">0,80 m</option><option value="0.7">0,70 m</option><option value="0.9" selected>0,90 m</option><option value="1.2">1,20 m</option><option value="1.5">1,50 m</option><option value="2">2,00 m</option></select></label><label>Zoom inicial <select id="zoom"><option value="35">Compacto</option><option value="65" selected>Normal</option><option value="100">Ampliado</option></select></label><div class="divider"></div><div class="inline-actions"><button id="clearObjectBtn">Limpar seleção da biblioteca</button></div><div class="divider"></div><div class="library" id="library"></div><div class="divider"></div><h2>Como usar no iPad</h2><p><b>Apple Pencil:</b> desenha paredes e insere itens. <b>Um dedo:</b> movimenta a folha. <b>Dois dedos:</b> aproxima ou afasta o desenho (zoom).</p><p><b>Selecionar/mover:</b> toque numa parede ou móvel com a Pencil e arraste para mover. Portas e janelas acompanham as paredes. Selecione e toque em Apagar item para remover.</p><p><b>Itens em escala:</b> cama, geladeira, guarda-roupa, sofá, mesa, pia, lavatório, vaso, box, fogão/cooktop, máquina de lavar e carro, entre outros.</p><p class="secondary">Versão inicial para esboços e estudos de distribuição. Não substitui um projeto técnico de arquiteto/engenheiro.</p></aside></div>
+<script>
+(()=>{'use strict';
+const canvas=document.getElementById('plan'),ctx=canvas.getContext('2d'),wrap=canvas.parentElement,hint=document.getElementById('hint'),measure=document.getElementById('measure');
+const sizeEditor=document.getElementById('sizeEditor'),itemWidth=document.getElementById('itemWidth'),itemHeight=document.getElementById('itemHeight'),itemAngle=document.getElementById('itemAngle');
+const angleOf=o=>Number.isFinite(o.angle)?o.angle:(o.rot||0)*90;
+const currentObjectLabel=document.getElementById('currentObjectLabel'),libraryPanel=document.getElementById('libraryPanel'),libraryEl=document.getElementById('library');
+const definitions={
+ bed:{w:1.38,h:1.88,name:'Cama casal',cat:'Quarto'},
+ singlebed:{w:.88,h:1.88,name:'Cama solteiro',cat:'Quarto'},
+ wardrobe:{w:1.80,h:.60,name:'Guarda-roupa',cat:'Quarto'},
+ nightstand:{w:.50,h:.45,name:'Criado-mudo',cat:'Quarto'},
+ sofa:{w:1.80,h:.85,name:'Sofá',cat:'Sala'},
+ armchair:{w:.80,h:.80,name:'Poltrona',cat:'Sala'},
+ tvpanel:{w:1.60,h:.35,name:'Painel / rack TV',cat:'Sala'},
+ table:{w:.80,h:.80,name:'Mesa',cat:'Sala'},
+ dining:{w:1.40,h:.80,name:'Mesa jantar',cat:'Sala'},
+ fridge:{w:.70,h:.70,name:'Geladeira',cat:'Cozinha'},
+ sink:{w:1.20,h:.60,name:'Pia cozinha',cat:'Cozinha'},
+ counter:{w:1.80,h:.60,name:'Bancada',cat:'Cozinha'},
+ stove:{w:.60,h:.60,name:'Fogão',cat:'Cozinha'},
+ cooktop:{w:.60,h:.52,name:'Cooktop',cat:'Cozinha'},
+ washer:{w:.60,h:.65,name:'Máquina lavar',cat:'Serviço'},
+ basin:{w:.55,h:.45,name:'Lavatório',cat:'Banheiro'},
+ toilet:{w:.40,h:.70,name:'Vaso sanitário',cat:'Banheiro'},
+ shower:{w:.90,h:.90,name:'Box',cat:'Banheiro'},
+ desk:{w:1.20,h:.60,name:'Escrivaninha',cat:'Escritório'},
+ chair:{w:.45,h:.45,name:'Cadeira',cat:'Escritório'},
+ car:{w:2.00,h:4.50,name:'Carro',cat:'Garagem'},
+ bike:{w:.60,h:1.80,name:'Bicicleta',cat:'Garagem'}
+};
+const categories=['Quarto','Sala','Cozinha','Banheiro','Serviço','Escritório','Garagem'];
+let multi=[],selectionRect=null,moveGroup=false;let state={walls:[],openings:[],objects:[]},history=[],tool='wall',start=null,hover=null,selected=null,drag=null,pxm=65,origin={x:85,y:80},size={w:800,h:600},currentObject=''; let pointers=new Map(),touchGesture=null,penActive=null;
+const round=(n,s=.25)=>Math.round(n/s)*s;const pt=(p)=>({x:origin.x+p.x*pxm,y:origin.y+p.y*pxm});const from=(p)=>({x:(p.x-origin.x)/pxm,y:(p.y-origin.y)/pxm});const length=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
+function pointer(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}function snap(p){let m=from(p);return{x:round(m.x),y:round(m.y)}}
+function store(){try{localStorage.setItem('plantaSimplesV2',JSON.stringify(state))}catch(_){}}function commit(){history.push(JSON.stringify(state));if(history.length>60)history.shift();store();}function resetSelect(){selected=null;measure.textContent='Nenhum item selecionado.';sizeEditor.style.display='none'}
+function nearestWall(m){let best=null;for(let i=0;i<state.walls.length;i++){let w=state.walls[i],dx=w.b.x-w.a.x,dy=w.b.y-w.a.y,l2=dx*dx+dy*dy;if(!l2)continue;let t=Math.max(0,Math.min(1,((m.x-w.a.x)*dx+(m.y-w.a.y)*dy)/l2)),q={x:w.a.x+t*dx,y:w.a.y+t*dy},d=length(m,q);if(d<.24&&(!best||d<best.d))best={index:i,t,q,d,w}}return best}
+function openingRect(op){let w=state.walls[op.wall];if(!w)return null;let dx=w.b.x-w.a.x,dy=w.b.y-w.a.y,L=Math.hypot(dx,dy),u={x:dx/L,y:dy/L};let c={x:w.a.x+dx*op.t,y:w.a.y+dy*op.t};return{w,L,u,c,a:{x:c.x-u.x*op.size/2,y:c.y-u.y*op.size/2},b:{x:c.x+u.x*op.size/2,y:c.y+u.y*op.size/2}}}
+function objectCard(key,def){return `<button class="item-btn${currentObject===key?' active':''}" data-object="${key}"><span class="name">${def.name}</span><span class="size">${def.w.toFixed(2).replace('.',',')} × ${def.h.toFixed(2).replace('.',',')} m</span></button>`}
+function buildLibrary(){libraryEl.innerHTML=categories.map(cat=>`<section class="category"><h3>${cat}</h3><div class="item-grid">${Object.entries(definitions).filter(([,d])=>d.cat===cat).map(([k,d])=>objectCard(k,d)).join('')}</div></section>`).join('');
+ libraryEl.querySelectorAll('[data-object]').forEach(btn=>btn.addEventListener('click',()=>selectLibraryObject(btn.dataset.object)))}
+function selectLibraryObject(key){currentObject=key||'';buildLibrary();if(currentObject){tool='object';start=null;resetSelect();document.querySelectorAll('[data-tool]').forEach(x=>x.classList.remove('active'));const d=definitions[currentObject];currentObjectLabel.textContent=`Item selecionado: ${d.name} · ${d.w.toFixed(2).replace('.',',')} × ${d.h.toFixed(2).replace('.',',')} m`;hint.textContent=`Use a Apple Pencil para posicionar ${d.name.toLowerCase()} na planta.`;}else{currentObjectLabel.textContent='Nenhum item da biblioteca selecionado';hint.textContent='Selecione um item da biblioteca lateral ou escolha uma ferramenta de desenho.';}render()}
+function renderObjectShape(kind,def){const w=def.w*pxm,h=def.h*pxm;switch(kind){
+ case 'bed':case 'singlebed':ctx.strokeRect(-w*.42,-h*.44,w*.84,h*.26);break;
+ case 'wardrobe':ctx.beginPath();ctx.moveTo(0,-h/2);ctx.lineTo(0,h/2);ctx.stroke();break;
+ case 'nightstand':ctx.beginPath();ctx.moveTo(-w*.32,0);ctx.lineTo(w*.32,0);ctx.stroke();break;
+ case 'sofa':ctx.strokeRect(-w*.48,-h*.34,w*.96,h*.68);ctx.beginPath();ctx.moveTo(-w*.35,-h*.38);ctx.lineTo(-w*.35,h*.38);ctx.moveTo(w*.35,-h*.38);ctx.lineTo(w*.35,h*.38);ctx.stroke();break;
+ case 'armchair':ctx.beginPath();ctx.arc(0,0,Math.min(w,h)*.25,0,Math.PI*2);ctx.stroke();break;
+ case 'tvpanel':ctx.beginPath();ctx.moveTo(-w*.3,0);ctx.lineTo(w*.3,0);ctx.stroke();break;
+ case 'table':ctx.beginPath();ctx.arc(0,0,Math.min(w,h)*.28,0,Math.PI*2);ctx.stroke();break;
+ case 'dining':ctx.strokeRect(-w*.42,-h*.32,w*.84,h*.64);break;
+ case 'sink':case 'basin':ctx.beginPath();ctx.ellipse(0,0,w*.24,h*.22,0,0,Math.PI*2);ctx.stroke();break;
+ case 'toilet':ctx.beginPath();ctx.ellipse(0,0,w*.33,h*.25,0,0,Math.PI*2);ctx.stroke();break;
+ case 'shower':ctx.beginPath();ctx.moveTo(-w/2,-h/2);ctx.lineTo(w/2,h/2);ctx.moveTo(w/2,-h/2);ctx.lineTo(-w/2,h/2);ctx.stroke();break;
+ case 'stove':case 'cooktop':for(let x of [-.15,.15])for(let y of [-.12,.12]){ctx.beginPath();ctx.arc(x*pxm,y*pxm,3,0,Math.PI*2);ctx.stroke()}break;
+ case 'washer':ctx.strokeRect(-w*.32,-h*.30,w*.64,h*.60);ctx.beginPath();ctx.arc(0,0,Math.min(w,h)*.18,0,Math.PI*2);ctx.stroke();break;
+ case 'desk':ctx.beginPath();ctx.moveTo(-w*.4,h*.25);ctx.lineTo(w*.4,h*.25);ctx.stroke();break;
+ case 'chair':ctx.beginPath();ctx.arc(0,0,Math.min(w,h)*.18,0,Math.PI*2);ctx.stroke();break;
+ case 'car':ctx.beginPath();ctx.roundRect(-w*.4,-h*.42,w*.8,h*.84,10);ctx.stroke();ctx.beginPath();ctx.arc(-w*.23,h*.33,6,0,Math.PI*2);ctx.arc(w*.23,h*.33,6,0,Math.PI*2);ctx.arc(-w*.23,-h*.33,6,0,Math.PI*2);ctx.arc(w*.23,-h*.33,6,0,Math.PI*2);ctx.stroke();break;
+ case 'bike':ctx.beginPath();ctx.arc(-w*.22,0,8,0,Math.PI*2);ctx.arc(w*.22,0,8,0,Math.PI*2);ctx.moveTo(-w*.22,0);ctx.lineTo(0,-h*.2);ctx.lineTo(w*.1,0);ctx.lineTo(w*.22,0);ctx.stroke();break;
+ }
+}
+function render(){const dpr=window.devicePixelRatio||1;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,size.w,size.h);ctx.fillStyle='#fcfdff';ctx.fillRect(0,0,size.w,size.h);let step=pxm/4;for(let k=0;k<2;k++){ctx.beginPath();ctx.lineWidth=k?1.1:.6;ctx.strokeStyle=k?'#b8cbe0':'#e0e8f1';let g=k?pxm:step;for(let x=((origin.x%g)+g)%g;x<size.w;x+=g){ctx.moveTo(x,0);ctx.lineTo(x,size.h)}for(let y=((origin.y%g)+g)%g;y<size.h;y+=g){ctx.moveTo(0,y);ctx.lineTo(size.w,y)}ctx.stroke()}
+ state.walls.forEach((w,i)=>{const a=pt(w.a),b=pt(w.b),dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy);if(!L)return;const nx=-dy/L,ny=dx/L,t=w.thick*pxm/2;let gaps=state.openings.filter(o=>o.wall===i).map(o=>[Math.max(0,o.t*L-o.size*pxm/2),Math.min(L,o.t*L+o.size*pxm/2)]).sort((x,y)=>x[0]-y[0]);let intervals=[],cursor=0;for(const g of gaps){if(g[0]>cursor)intervals.push([cursor,g[0]]);cursor=Math.max(cursor,g[1])}if(cursor<L)intervals.push([cursor,L]);ctx.strokeStyle='#24364c';ctx.lineWidth=1.6;ctx.fillStyle='#dbe4ed';for(let seg of intervals){let A={x:a.x+dx/L*seg[0],y:a.y+dy/L*seg[0]},B={x:a.x+dx/L*seg[1],y:a.y+dy/L*seg[1]};ctx.beginPath();ctx.moveTo(A.x+nx*t,A.y+ny*t);ctx.lineTo(B.x+nx*t,B.y+ny*t);ctx.lineTo(B.x-nx*t,B.y-ny*t);ctx.lineTo(A.x-nx*t,A.y-ny*t);ctx.closePath();ctx.fill();ctx.stroke()}if(selected?.type==='wall'&&selected.i===i){ctx.strokeStyle='#1d66c1';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([])}ctx.fillStyle='#58677b';ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillText((L/pxm).toFixed(2)+' m',(a.x+b.x)/2+nx*17,(a.y+b.y)/2+ny*17)});
+ state.openings.forEach((op,i)=>{let r=openingRect(op);if(!r)return;let c=pt(r.c);ctx.save();ctx.translate(c.x,c.y);ctx.rotate(Math.atan2(r.u.y,r.u.x));let wide=op.size*pxm;ctx.strokeStyle=selected?.type==='opening'&&selected.i===i?'#dc6b22':'#176aa4';ctx.lineWidth=2.2;if(op.kind==='window'){ctx.beginPath();ctx.moveTo(-wide/2,-4);ctx.lineTo(wide/2,-4);ctx.moveTo(-wide/2,4);ctx.lineTo(wide/2,4);ctx.stroke()}else{ctx.beginPath();ctx.moveTo(-wide/2,0);ctx.lineTo(-wide/2,-wide*.75);ctx.arc(-wide/2,0,wide*.75,-Math.PI/2,0);ctx.stroke();ctx.beginPath();ctx.moveTo(-wide/2,0);ctx.lineTo(wide/4,0);ctx.stroke()}ctx.restore()});
+ state.objects.forEach((o,i)=>{let base=definitions[o.kind];if(!base)return;let def={...base,w:o.w||base.w,h:o.h||base.h};const c=pt(o),rot=angleOf(o),w=def.w*pxm,h=def.h*pxm;ctx.save();ctx.translate(c.x,c.y);ctx.rotate(rot*Math.PI/180);ctx.fillStyle=selected?.type==='object'&&selected.i===i?'#cfe7ff':'#eef3f9';ctx.strokeStyle=selected?.type==='object'&&selected.i===i?'#1764b9':'#667d92';ctx.lineWidth=1.5;ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeRect(-w/2,-h/2,w,h);renderObjectShape(o.kind,def);ctx.fillStyle='#24364c';ctx.textAlign='center';ctx.font='10px system-ui';ctx.fillText(def.name,0,4);ctx.restore()});
+ if(start&&hover&&tool==='wall'){let a=pt(start),b=pt(snap(hover));ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle='#2674d2';ctx.lineWidth=3;ctx.setLineDash([6,5]);ctx.stroke();ctx.setLineDash([])}
+ if(multi.length){ctx.save();ctx.strokeStyle='#1675cb';ctx.lineWidth=2;ctx.setLineDash([6,4]);for(const sel of multi){if(sel.type==='wall'){const w=state.walls[sel.i];if(!w)continue;const a=pt(w.a),b=pt(w.b);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}else if(sel.type==='object'){const o=state.objects[sel.i];if(!o)continue;const d=definitions[o.kind],w=(o.w||d.w)*pxm,h=(o.h||d.h)*pxm;ctx.save();const c=pt(o);ctx.translate(c.x,c.y);ctx.rotate(angleOf(o)*Math.PI/180);ctx.strokeRect(-w/2,-h/2,w,h);ctx.restore()}else{let op=state.openings[sel.i],r=op&&openingRect(op);if(r){let c=pt(r.c);ctx.strokeRect(c.x-6,c.y-6,12,12)}}}ctx.restore()}
+ if(selectionRect){const a=pt(selectionRect.a),b=pt(selectionRect.b);ctx.save();ctx.fillStyle='#338ef022';ctx.strokeStyle='#177ac9';ctx.setLineDash([7,5]);ctx.fillRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y));ctx.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y));ctx.restore()}
+ ctx.fillStyle='#172339';ctx.font='12px system-ui';ctx.textAlign='left';ctx.fillText('0',14,size.h-20);ctx.fillRect(17,size.h-15,pxm,3);ctx.fillText('1 m',20+pxm,size.h-11)}
+function resize(){let b=wrap.getBoundingClientRect();size={w:b.width,h:b.height};const d=window.devicePixelRatio||1;canvas.width=Math.round(size.w*d);canvas.height=Math.round(size.h*d);render()}function identify(m){for(let i=state.objects.length-1;i>=0;i--){let o=state.objects[i],base=definitions[o.kind],d={...base,w:o.w||base.w,h:o.h||base.h},dx=m.x-o.x,dy=m.y-o.y;const ang=angleOf(o)*Math.PI/180,localX=dx*Math.cos(ang)+dy*Math.sin(ang),localY=-dx*Math.sin(ang)+dy*Math.cos(ang);if(Math.abs(localX)<=d.w/2+.08&&Math.abs(localY)<=d.h/2+.08)return{type:'object',i}}for(let i=state.openings.length-1;i>=0;i--){let r=openingRect(state.openings[i]);if(r&&length(m,r.c)<state.openings[i].size/2+.15)return{type:'opening',i}}let n=nearestWall(m);return n?{type:'wall',i:n.index}:null}
+function updateMeasure(){if(!selected){resetSelect();return}sizeEditor.style.display='none';let {type,i}=selected;if(type==='wall'){let w=state.walls[i];measure.textContent=`Parede: ${length(w.a,w.b).toFixed(2)} m × ${(w.thick*100).toFixed(0)} cm`;}else if(type==='opening'){let o=state.openings[i];measure.textContent=`${o.kind==='door'?'Porta':'Janela'}: ${o.size.toFixed(2)} m`;}else{let o=state.objects[i],d=definitions[o.kind];let w=o.w||d.w,h=o.h||d.h;measure.textContent=`${d.name}: ${w.toFixed(2)} × ${h.toFixed(2)} m`;itemWidth.value=w.toFixed(2);itemHeight.value=h.toFixed(2);itemAngle.value=angleOf(o);sizeEditor.style.display='block';}}
+function place(p){let m=snap(p);if(tool==='wall'){if(!start){start=m;hint.textContent='Agora toque no ponto final da parede. Toque novamente no início para cancelar.'}else{if(length(start,m)>.1){commit();state.walls.push({a:start,b:m,thick:+document.getElementById('thickness').value});store()}start=null;hint.textContent='Parede: toque com a Pencil no início e no fim. Linhas duplas de 15 cm.'}}else if(tool==='door'||tool==='window'){let raw=from(p),n=nearestWall(raw);if(!n){hint.textContent='Use a Pencil diretamente sobre uma parede para inserir a abertura.';return}let width=+document.getElementById('openingSize').value,L=length(n.w.a,n.w.b);if(L<width){hint.textContent='A abertura é maior que essa parede. Escolha uma largura menor.';return}let t=Math.max(width/(2*L),Math.min(1-width/(2*L),n.t));commit();state.openings.push({wall:n.index,t,size:width,kind:tool});store()}else if(tool==='object'){if(!currentObject){hint.textContent='Escolha um item na biblioteca lateral antes de inserir.';return}commit();state.objects.push({...m,kind:currentObject,rot:0,w:definitions[currentObject].w,h:definitions[currentObject].h});selected={type:'object',i:state.objects.length-1};updateMeasure();store()}else if(tool==='select'){selected=identify(from(p));updateMeasure()}render()}
+function gestureReference(){const a=[...pointers.values()];if(!a.length)return null;const center=a.length===1?a[0]:{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2};return{center,dist:a.length>=2?length(a[0],a[1]):null,origin:{...origin},scale:pxm,world:from(center)}}
+function within(p,r){return p.x>=Math.min(r.a.x,r.b.x)&&p.x<=Math.max(r.a.x,r.b.x)&&p.y>=Math.min(r.a.y,r.b.y)&&p.y<=Math.max(r.a.y,r.b.y)}
+function selectRectangle(r){let found=[];state.walls.forEach((w,i)=>{if(within(w.a,r)&&within(w.b,r))found.push({type:'wall',i})});state.objects.forEach((o,i)=>{const d=definitions[o.kind],w=o.w||d.w,h=o.h||d.h,rad=angleOf(o)*Math.PI/180,cs=Math.cos(rad),sn=Math.sin(rad);const corners=[[-w/2,-h/2],[-w/2,h/2],[w/2,-h/2],[w/2,h/2]];if(corners.every(([x,y])=>within({x:o.x+x*cs-y*sn,y:o.y+x*sn+y*cs},r)))found.push({type:'object',i})});state.openings.forEach((op,i)=>{const r0=openingRect(op);if(r0&&within(r0.a,r)&&within(r0.b,r))found.push({type:'opening',i})});return found}
+function normalizeGroup(){const walls=new Set(multi.filter(x=>x.type==='wall').map(x=>x.i));return multi.filter(x=>x.type!=='opening'||!walls.has(state.openings[x.i]?.wall))}
+function moveSelectedFrom(snapshot,dx,dy){const base=JSON.parse(snapshot),group=normalizeGroup();for(const item of group){if(item.type==='wall'){let w=state.walls[item.i],b=base.walls[item.i];w.a={x:b.a.x+dx,y:b.a.y+dy};w.b={x:b.b.x+dx,y:b.b.y+dy}}else if(item.type==='object'){let o=state.objects[item.i],b=base.objects[item.i];o.x=b.x+dx;o.y=b.y+dy}else if(item.type==='opening'){const b=base.openings[item.i],w=state.walls[b.wall],vx=w.b.x-w.a.x,vy=w.b.y-w.a.y,L2=vx*vx+vy*vy,L=Math.sqrt(L2);if(!L)continue;const c={x:base.walls[b.wall].a.x+(base.walls[b.wall].b.x-base.walls[b.wall].a.x)*b.t+dx,y:base.walls[b.wall].a.y+(base.walls[b.wall].b.y-base.walls[b.wall].a.y)*b.t+dy};const t=((c.x-w.a.x)*vx+(c.y-w.a.y)*vy)/L2,lim=Math.min(.5,b.size/(2*L));state.openings[item.i].t=Math.max(lim,Math.min(1-lim,t))}}}
+function deleteSelectedGroup(){if(!multi.length)return;commit();const ws=new Set(multi.filter(x=>x.type==='wall').map(x=>x.i)),ops=new Set(multi.filter(x=>x.type==='opening').map(x=>x.i)),obs=new Set(multi.filter(x=>x.type==='object').map(x=>x.i));const mapping=new Map();state.walls=state.walls.filter((_,i)=>{if(ws.has(i))return false;mapping.set(i,i-[...ws].filter(k=>k<i).length);return true});state.openings=state.openings.filter((o,i)=>!ops.has(i)&&!ws.has(o.wall)).map(o=>({...o,wall:mapping.get(o.wall)}));state.objects=state.objects.filter((_,i)=>!obs.has(i));resetSelect();store();render()}
+function copySelectedGroup(){if(!multi.length){hint.textContent='Contorne os itens primeiro.';return}commit();const group=normalizeGroup(),wallMap=new Map(),copies=[];for(const item of group.filter(x=>x.type==='wall')){const w=structuredClone(state.walls[item.i]);w.a.x+=1;w.a.y+=1;w.b.x+=1;w.b.y+=1;wallMap.set(item.i,state.walls.length);state.walls.push(w);copies.push({type:'wall',i:state.walls.length-1})}for(const item of group.filter(x=>x.type==='object')){const o=structuredClone(state.objects[item.i]);o.x+=1;o.y+=1;state.objects.push(o);copies.push({type:'object',i:state.objects.length-1})}const openingIds=new Set(group.filter(x=>x.type==='opening').map(x=>x.i));state.openings.forEach((o,i)=>{if(wallMap.has(o.wall))openingIds.add(i)});const openingCopies=[...openingIds].map(i=>({original:i,op:structuredClone(state.openings[i])}));for(const {original,op} of openingCopies){if(wallMap.has(op.wall)){op.wall=wallMap.get(op.wall)}else{const w=state.walls[op.wall],base=state.walls[op.wall],dx=w.b.x-w.a.x,dy=w.b.y-w.a.y,L=Math.hypot(dx,dy);if(!L)continue;let next=Math.min(1-op.size/(2*L),Math.max(op.size/(2*L),op.t+((dx+dy)/L**2)));op.t=next}state.openings.push(op);copies.push({type:'opening',i:state.openings.length-1})}multi=copies;store();measure.textContent=multi.length+' elementos copiados';moveGroup=true;hint.textContent='Cópia criada 1 metro à direita e abaixo. Arraste a seleção com a Pencil para posicionar.';render()}
+// Move walls, openings and furniture without changing their size.
+// All dragging uses a snapshot from pointerdown, so the selection never jumps.
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);const p=pointer(e);
+ if(e.pointerType==='touch'){pointers.set(e.pointerId,p);touchGesture=gestureReference();return;}
+ if(e.pointerType==='mouse'&&pointers.size)return;
+ penActive=e.pointerId;
+ if(tool==='multi'){if(moveGroup&&multi.length){drag={type:'group',before:JSON.stringify(state),anchor:from(p),changed:false};hint.textContent='Arraste a seleção para a nova posição.'}else{selectionRect={a:from(p),b:from(p)};multi=[];selected=null;sizeEditor.style.display='none';hint.textContent='Contorne os itens que deseja selecionar.'}render();return;}
+ if(tool==='select'){
+   selected=identify(from(p));updateMeasure();
+   if(selected)drag={type:selected.type,index:selected.i,before:JSON.stringify(state),anchor:from(p),changed:false};
+   hint.textContent=selected?'Arraste com a Pencil para mover. Para excluir, toque em Apagar item.':'Toque com a Pencil sobre uma parede, porta, janela ou móvel.';
+   render();
+ }else place(p);
+});
+canvas.addEventListener('pointermove',e=>{const p=pointer(e);
+ if(e.pointerType==='touch'){
+   if(!pointers.has(e.pointerId))return;
+   pointers.set(e.pointerId,p);if(!touchGesture)touchGesture=gestureReference();
+   const pts=[...pointers.values()],center=pts.length===1?pts[0]:{x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
+   if(pts.length>=2&&touchGesture.dist){const dist=length(pts[0],pts[1]);pxm=Math.max(18,Math.min(250,touchGesture.scale*dist/touchGesture.dist));}
+   origin={x:center.x-touchGesture.world.x*pxm,y:center.y-touchGesture.world.y*pxm};render();return;
+ }
+ if(penActive!==e.pointerId)return;
+ hover=p;
+ if(selectionRect&&tool==='multi'){selectionRect.b=from(p);render();return;}
+ if(drag&&tool==='multi'&&drag.type==='group'){const cursor=from(p),dx=round(cursor.x-drag.anchor.x),dy=round(cursor.y-drag.anchor.y);drag.changed=dx!==0||dy!==0;moveSelectedFrom(drag.before,dx,dy);render();return;}
+ if(drag&&tool==='select'){
+   const original=JSON.parse(drag.before),cursor=from(p),dx=round(cursor.x-drag.anchor.x),dy=round(cursor.y-drag.anchor.y);
+   drag.changed=dx!==0||dy!==0;
+   if(drag.type==='object'){
+      const base=original.objects[drag.index],o=state.objects[drag.index];o.x=base.x+dx;o.y=base.y+dy;
+   }else if(drag.type==='wall'){
+      const base=original.walls[drag.index],w=state.walls[drag.index];
+      w.a={x:base.a.x+dx,y:base.a.y+dy};w.b={x:base.b.x+dx,y:base.b.y+dy};
+      // Openings refer to their wall, so they follow automatically.
+   }else if(drag.type==='opening'){
+      const base=original.openings[drag.index],wall=state.walls[base.wall];
+      const m={x:cursor.x,y:cursor.y},vx=wall.b.x-wall.a.x,vy=wall.b.y-wall.a.y,L=Math.hypot(vx,vy);
+      if(L){const minT=Math.min(.5,base.size/(2*L));state.openings[drag.index].t=Math.max(minT,Math.min(1-minT,((m.x-wall.a.x)*vx+(m.y-wall.a.y)*vy)/(L*L)));}
+      drag.changed=Math.abs(state.openings[drag.index].t-base.t)>1e-5;
+   }
+   updateMeasure();render();
+ }else if(start)render();
+});
+function endPointer(e){if(e.pointerType==='touch'){pointers.delete(e.pointerId);touchGesture=gestureReference();return;}
+ if(penActive!==e.pointerId)return;penActive=null;
+ if(selectionRect){multi=selectRectangle(selectionRect);selectionRect=null;moveGroup=multi.length>0;measure.textContent=multi.length+' elementos selecionados';hint.textContent=multi.length?'Arraste com a Pencil para mover o conjunto; use Copiar seleção ou Apagar item.':'Nenhum elemento inteiramente dentro do retângulo.';render();}
+ if(drag){if(drag.changed){history.push(drag.before);if(history.length>60)history.shift();store();}drag=null;}
+}
+canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
+canvas.addEventListener('wheel',e=>{e.preventDefault();const p=pointer(e),m=from(p);pxm=Math.max(18,Math.min(250,pxm*Math.exp(-e.deltaY*.002)));origin={x:p.x-m.x*pxm,y:p.y-m.y*pxm};render()},{passive:false});
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool;start=null;resetSelect();hint.textContent={wall:'Parede: toque no início e no fim. Cada quadrado maior mede 1 metro.',door:'Porta: toque sobre uma parede para inseri-la.',window:'Janela: toque sobre uma parede para inseri-la.',select:'Toque na parede, porta, janela ou móvel com a Pencil e arraste para mover; use Apagar item para excluir.',multi:'Com a Pencil, desenhe um retângulo envolvendo os itens; depois arraste, copie ou apague o conjunto.'}[tool];render()}));
+document.getElementById('clearObjectBtn').onclick=()=>selectLibraryObject('');
+document.getElementById('applySizeBtn').onclick=()=>{if(selected?.type!=='object')return;const w=Number(itemWidth.value),h=Number(itemHeight.value);if(!Number.isFinite(w)||!Number.isFinite(h)||w<.05||h<.05||w>30||h>30){alert('Informe largura e comprimento entre 0,05 m e 30 m.');return}commit();let o=state.objects[selected.i];o.w=w;o.h=h;store();updateMeasure();render();hint.textContent='Medidas atualizadas na escala real da planta.'};
+document.getElementById('resetSizeBtn').onclick=()=>{if(selected?.type!=='object')return;commit();let o=state.objects[selected.i],d=definitions[o.kind];o.w=d.w;o.h=d.h;store();updateMeasure();render()};
+document.getElementById('copyGroupBtn').onclick=copySelectedGroup;document.getElementById('moveGroupBtn').onclick=()=>{if(multi.length){moveGroup=true;hint.textContent='Arraste a seleção com a Pencil.';}else hint.textContent='Use Seleção múltipla para contornar os elementos.'};
+document.getElementById('removeBtn').onclick=()=>{if(multi.length){deleteSelectedGroup();return;}if(!selected)return;commit();let {type,i}=selected;if(type==='wall'){state.walls.splice(i,1);state.openings=state.openings.filter(o=>o.wall!==i).map(o=>({...o,wall:o.wall>i?o.wall-1:o.wall}))}else if(type==='opening')state.openings.splice(i,1);else state.objects.splice(i,1);resetSelect();store();render()};
+function turnItem(degrees,absolute=false){if(selected?.type!=='object'){hint.textContent='Selecione um móvel ou equipamento para girá-lo.';return}if(!Number.isFinite(degrees))return;commit();const o=state.objects[selected.i];o.angle=((absolute?degrees:angleOf(o)+degrees)%360+360)%360;store();updateMeasure();render();hint.textContent='Objeto girado para '+o.angle+'°. As dimensões continuam em escala.';}document.getElementById('rotateBtn').onclick=()=>turnItem(90);document.getElementById('rotate90Btn').onclick=()=>turnItem(90);document.getElementById('rotateLeftBtn').onclick=()=>turnItem(-15);document.getElementById('rotateRightBtn').onclick=()=>turnItem(15);document.getElementById('applyAngleBtn').onclick=()=>{const n=Number(itemAngle.value);if(itemAngle.value.trim()===''||!Number.isFinite(n)){alert('Informe um ângulo válido.');return;}turnItem(n,true)};
+document.getElementById('undoBtn').onclick=()=>{if(!history.length)return;state=JSON.parse(history.pop());resetSelect();start=null;store();render()};document.getElementById('zoom').onchange=e=>{pxm=+e.target.value;render()};
+document.getElementById('newBtn').onclick=()=>{if(!confirm('Criar uma planta nova? Salve um arquivo da atual se quiser guardá-la.'))return;commit();state={walls:[],openings:[],objects:[]};start=null;resetSelect();store();render()};
+function download(filename,blob){let a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
+
+// DXF R12 ASCII: every coordinate is in millimeters, editable geometric vectors.
+function exportDXF(){
+ const rows=[],emit=(...parts)=>rows.push(...parts.map(String));
+ const n=v=>Number(v.toFixed(4));
+ emit(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,4,0,'ENDSEC');
+ emit(0,'SECTION',2,'TABLES',0,'TABLE',2,'LAYER',70,3);
+ for(const [name,col] of [['PAREDES',7],['PORTAS_JANELAS',5],['MOBILIARIO',3]])emit(0,'LAYER',2,name,70,0,62,col,6,'CONTINUOUS');
+ emit(0,'ENDTAB',0,'ENDSEC',0,'SECTION',2,'ENTITIES');
+ function line(a,b,layer){emit(0,'LINE',8,layer,10,n(a.x*1000),20,n(-a.y*1000),30,0,11,n(b.x*1000),21,n(-b.y*1000),31,0)}
+ function poly(pts,layer){for(let i=0;i<pts.length;i++)line(pts[i],pts[(i+1)%pts.length],layer)}
+ state.walls.forEach((w,i)=>{
+  const dx=w.b.x-w.a.x,dy=w.b.y-w.a.y,L=Math.hypot(dx,dy);if(!L)return;
+  const u={x:dx/L,y:dy/L},v={x:-u.y,y:u.x},t=w.thick/2;
+  const gaps=state.openings.filter(o=>o.wall===i).map(o=>[Math.max(0,o.t*L-o.size/2),Math.min(L,o.t*L+o.size/2)]).sort((a,b)=>a[0]-b[0]);
+  const intervals=[];let cursor=0;for(const g of gaps){if(g[0]>cursor)intervals.push([cursor,g[0]]);cursor=Math.max(cursor,g[1]);}if(cursor<L)intervals.push([cursor,L]);
+  for(const [a,b] of intervals){const pos=(r,side)=>({x:w.a.x+r*u.x+side*t*v.x,y:w.a.y+r*u.y+side*t*v.y});poly([pos(a,1),pos(b,1),pos(b,-1),pos(a,-1)],'PAREDES')}
+ });
+ state.openings.forEach(op=>{
+  const w=state.walls[op.wall];if(!w)return;
+  const dx=w.b.x-w.a.x,dy=w.b.y-w.a.y,L=Math.hypot(dx,dy);if(!L)return;
+  const u={x:dx/L,y:dy/L},v={x:-u.y,y:u.x},c={x:w.a.x+dx*op.t,y:w.a.y+dy*op.t};
+  const at=(along,side=0)=>({x:c.x+u.x*along+v.x*side,y:c.y+u.y*along+v.y*side});
+  if(op.kind==='window'){line(at(-op.size/2,-.025),at(op.size/2,-.025),'PORTAS_JANELAS');line(at(-op.size/2,.025),at(op.size/2,.025),'PORTAS_JANELAS')}
+  else {line(at(-op.size/2),at(-op.size/2,op.size),'PORTAS_JANELAS');const segments=12;let last=at(-op.size/2,op.size);for(let k=1;k<=segments;k++){const theta=Math.PI/2*(1-k/segments),next=at(-op.size/2+op.size*Math.cos(theta),op.size*Math.sin(theta));line(last,next,'PORTAS_JANELAS');last=next;}}
+ });
+ state.objects.forEach(o=>{
+  const def=definitions[o.kind];if(!def)return;
+  const w=o.w||def.w,h=o.h||def.h,rad=angleOf(o)*Math.PI/180,c=Math.cos(rad),s=Math.sin(rad);
+  const pos=(x,y)=>({x:o.x+x*c-y*s,y:o.y+x*s+y*c});
+  poly([pos(-w/2,-h/2),pos(w/2,-h/2),pos(w/2,h/2),pos(-w/2,h/2)],'MOBILIARIO');
+ });
+ emit(0,'ENDSEC',0,'EOF');
+ download('minha-planta-coreldraw.dxf',new Blob([rows.join('\r\n')+'\r\n'],{type:'application/dxf'}));
+}
+document.getElementById('dxfBtn').onclick=exportDXF;
+
+document.getElementById('saveBtn').onclick=()=>download('minha-planta.json',new Blob([JSON.stringify({version:2,...state},null,2)],{type:'application/json'}));document.getElementById('pngBtn').onclick=()=>canvas.toBlob(b=>{if(b)download('minha-planta.png',b)},'image/png');document.getElementById('loadBtn').onclick=()=>document.getElementById('fileInput').click();document.getElementById('fileInput').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let x=JSON.parse(await f.text());if(!Array.isArray(x.walls)||!Array.isArray(x.openings)||!Array.isArray(x.objects))throw Error();commit();state={walls:x.walls,openings:x.openings,objects:x.objects};resetSelect();store();render()}catch{alert('Arquivo de planta inválido.')}e.target.value=''};
+document.getElementById('toggleLibrary').onclick=()=>libraryPanel.classList.toggle('collapsed');
+try{let saved=JSON.parse(localStorage.getItem('plantaSimplesV2')||localStorage.getItem('plantaSimplesV1'));if(saved&&Array.isArray(saved.walls)&&Array.isArray(saved.openings)&&Array.isArray(saved.objects))state=saved}catch(_){}
+buildLibrary();window.addEventListener('resize',resize);resize();
+})();
+</script></body></html>
