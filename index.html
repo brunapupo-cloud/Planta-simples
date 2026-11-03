@@ -72,7 +72,7 @@ const definitions={
 const categories=['Quarto','Sala','Cozinha','Banheiro','Serviço','Escritório','Garagem'];
 const architecturalTools=[{key:'door',name:'Porta',symbol:'◜',description:'Inserir em parede'},{key:'window',name:'Janela',symbol:'▭',description:'Inserir em parede'},{key:'gate',name:'Portão',symbol:'▥',description:'Inserir em parede'}];
 let multi=[],selectionRect=null,moveGroup=false,magicPreview=[];
-let lastSelectTap=null;
+let lastSelectTap=null,lastEraseTap=null;
 
 function pdfLayers(){if(!Array.isArray(state.pdfLayers))state.pdfLayers=[];if(state.pdfBg){state.pdfLayers.unshift(state.pdfBg);delete state.pdfBg;}if(!Number.isInteger(state.activePdfIndex)||state.activePdfIndex<0||state.activePdfIndex>=state.pdfLayers.length)state.activePdfIndex=Math.max(0,state.pdfLayers.length-1);return state.pdfLayers}
 function activePdf(){const layers=pdfLayers();return layers[state.activePdfIndex]||null}
@@ -149,11 +149,20 @@ canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCa
  if(pdfMoveMode&&activePdf()&&!activePdf().locked){pdfMoveDrag={start:from(p),x:activePdf().x,y:activePdf().y,before:JSON.stringify(state)};return;}
  if(tool==='multi'){if(moveGroup&&multi.length){drag={type:'group',before:JSON.stringify(state),anchor:from(p),changed:false};hint.textContent='Arraste com a Pencil para mover todas as paredes selecionadas.'}else{selectionRect={a:from(p),b:from(p)};multi=[];selected=null;sizeEditor.style.display='none';hint.textContent='Arraste a Pencil na diagonal para criar um retângulo ao redor das paredes.'}render();return;}
  if(tool==='erase'){
-   const hit=identify(from(p));
-   if(!hit){hint.textContent='Toque diretamente na parede, porta, janela, portão ou móvel que deseja excluir.';return;}
-   selected=hit;multi=[];moveGroup=false;drag=null;lastSelectTap=null;
+   const hit=identify(from(p)),now=Date.now();
+   const confirmed=hit&&lastEraseTap&&now-lastEraseTap.time<500&&
+     hit.type===lastEraseTap.type&&hit.i===lastEraseTap.i&&
+     Math.hypot(p.x-lastEraseTap.x,p.y-lastEraseTap.y)<28;
+   if(!confirmed){
+     lastEraseTap=hit?{time:now,type:hit.type,i:hit.i,x:p.x,y:p.y}:null;
+     selected=hit;multi=[];moveGroup=false;drag=null;lastSelectTap=null;
+     if(hit){updateMeasure();hint.textContent='Toque novamente no mesmo elemento para excluir.';}
+     else{resetSelect();hint.textContent='Toque duas vezes sobre a parede, porta, janela, portão ou móvel que deseja excluir.';}
+     render();return;
+   }
+   lastEraseTap=null;selected=hit;multi=[];moveGroup=false;drag=null;lastSelectTap=null;
    document.getElementById('removeBtn').click();
-   hint.textContent='Elemento excluído. Use Desfazer para recuperar ou continue tocando nos outros itens que deseja apagar.';
+   hint.textContent='Elemento excluído com dois toques. Use Desfazer para recuperar.';
    return;
  }
  if(tool==='move'&&multi.length){
@@ -218,7 +227,7 @@ function endPointer(e){if(e.pointerType==='touch'){if(pdfMoveMode&&activePdf()&&
 }
 canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
 canvas.addEventListener('wheel',e=>{e.preventDefault();const p=pointer(e),m=from(p);pxm=Math.max(18,Math.min(250,pxm*Math.exp(-e.deltaY*.002)));origin={x:p.x-m.x*pxm,y:p.y-m.y*pxm};render()},{passive:false});
-document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool;start=null;if(tool!=='move')resetSelect();lastSelectTap=null;hint.textContent={move:'Mover: toque e arraste uma parede ou móvel com a Pencil. Para mover um conjunto, selecione-o antes.',erase:'Excluir: toque uma vez sobre o elemento a apagar. Use Desfazer para recuperar.',wall:'Parede: toque no início e no fim. Cada quadrado maior mede 1 metro.',door:'Porta: toque sobre uma parede para inseri-la.',window:'Janela: toque sobre uma parede para inseri-la.',select:'Toque na parede, porta, janela ou móvel com a Pencil e arraste para mover; use Apagar item para excluir.',multi:'Com a Pencil, desenhe um retângulo envolvendo os itens; depois arraste, copie ou apague o conjunto.'}[tool];render()}));
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool;start=null;if(tool!=='move')resetSelect();lastSelectTap=null;lastEraseTap=null;hint.textContent={move:'Mover: toque e arraste uma parede ou móvel com a Pencil. Para mover um conjunto, selecione-o antes.',erase:'Excluir: toque duas vezes rapidamente no mesmo elemento. Use Desfazer para recuperar.',wall:'Parede: toque no início e no fim. Cada quadrado maior mede 1 metro.',door:'Porta: toque sobre uma parede para inseri-la.',window:'Janela: toque sobre uma parede para inseri-la.',select:'Toque na parede, porta, janela ou móvel com a Pencil e arraste para mover; use Apagar item para excluir.',multi:'Com a Pencil, desenhe um retângulo envolvendo os itens; depois arraste, copie ou apague o conjunto.'}[tool];render()}));
 document.getElementById('clearObjectBtn').onclick=()=>selectLibraryObject('');
 document.getElementById('applySizeBtn').onclick=()=>{if(selected?.type!=='object')return;const w=Number(itemWidth.value),h=Number(itemHeight.value);if(!Number.isFinite(w)||!Number.isFinite(h)||w<.05||h<.05||w>30||h>30){alert('Informe largura e comprimento entre 0,05 m e 30 m.');return}commit();let o=state.objects[selected.i];o.w=w;o.h=h;store();updateMeasure();render();hint.textContent='Medidas atualizadas na escala real da planta.'};
 document.getElementById('resetSizeBtn').onclick=()=>{if(selected?.type!=='object')return;commit();let o=state.objects[selected.i],d=definitions[o.kind];o.w=d.w;o.h=d.h;store();updateMeasure();render()};
