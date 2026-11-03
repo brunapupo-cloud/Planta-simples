@@ -357,7 +357,7 @@ async function exportProjectPDF(){
    if(!window.PDFLib){await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';script.onload=resolve;script.onerror=()=>reject(Error('Não foi possível carregar o gerador de PDF. Verifique sua conexão.'));document.head.appendChild(script)})}
    const pdf=await window.PDFLib.PDFDocument.create();
    const labels=[['terreo','Térreo'],['superior','Pavimento superior']];
-   const {width:pw,height:ph}=window.PDFLib.PageSizes.A4;
+   const [pw,ph]=window.PDFLib.PageSizes.A4;if(!Number.isFinite(pw)||!Number.isFinite(ph))throw Error('Tamanho A4 inválido.');
    selected=null;multi=[];start=null;hover=null;selectionRect=null;
    for(const [floorKey,floorLabel] of labels){
      state=floors[floorKey]||emptyFloor();
