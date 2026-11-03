@@ -244,10 +244,11 @@ document.getElementById('toggleLibrary').onclick=()=>{if(document.body.classList
 
 let pendingCadFile=null;
 const cadPanel=document.getElementById('cadImportPanel'),cadStatus=document.getElementById('cadStatus');
-document.getElementById('importCadBtn').onclick=()=>document.getElementById('cadInput').click();
+document.getElementById('importCadBtn').onclick=()=>{cadStatus.textContent='';document.getElementById('cadInput').click()};
 document.getElementById('cadCancelBtn').onclick=()=>{pendingCadFile=null;cadPanel.style.display='none'};
 document.getElementById('cadInput').onchange=e=>{
 const file=e.target.files&&e.target.files[0];e.target.value='';if(!file)return;
+if(/\.json$/i.test(file.name)){document.getElementById('fileInput').click();alert('Para abrir uma planta salva em .json, escolha o arquivo no botão Abrir arquivo.');return;}
 pendingCadFile=file;document.getElementById('cadFilename').textContent=file.name;
 document.getElementById('cadUnits').value='1';cadStatus.textContent='Selecione a unidade correta utilizada pelo programa CAD.';
 cadPanel.style.display='flex';
