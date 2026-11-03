@@ -72,6 +72,8 @@ const definitions={
 const categories=['Quarto','Sala','Cozinha','Banheiro','Serviço','Escritório','Garagem'];
 const architecturalTools=[{key:'door',name:'Porta',symbol:'◜',description:'Inserir em parede'},{key:'window',name:'Janela',symbol:'▭',description:'Inserir em parede'},{key:'gate',name:'Portão',symbol:'▥',description:'Inserir em parede'}];
 let multi=[],selectionRect=null,moveGroup=false,magicPreview=[];
+let lastSelectTap=null;
+
 function pdfLayers(){if(!Array.isArray(state.pdfLayers))state.pdfLayers=[];if(state.pdfBg){state.pdfLayers.unshift(state.pdfBg);delete state.pdfBg;}if(!Number.isInteger(state.activePdfIndex)||state.activePdfIndex<0||state.activePdfIndex>=state.pdfLayers.length)state.activePdfIndex=Math.max(0,state.pdfLayers.length-1);return state.pdfLayers}
 function activePdf(){const layers=pdfLayers();return layers[state.activePdfIndex]||null}
 function updatePdfSelector(){const el=document.getElementById('pdfLayerSelect');if(!el)return;const layers=pdfLayers();const options=layers.map((b,i)=>'<option value="'+i+'">'+(i+1)+' · '+(b.name||'PDF importado')+(b.locked?' 🔒':'')+(b.hidden?' (oculto)':'')+'</option>').join('');if(el.innerHTML!==options)el.innerHTML=options;el.value=String(state.activePdfIndex)}let state={walls:[],openings:[],objects:[]},history=[],tool='wall',start=null,hover=null,selected=null,drag=null,pxm=65,origin={x:85,y:80},size={w:800,h:600},currentObject=''; let pointers=new Map(),touchGesture=null,penActive=null;
@@ -147,11 +149,23 @@ canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCa
  if(pdfMoveMode&&activePdf()&&!activePdf().locked){pdfMoveDrag={start:from(p),x:activePdf().x,y:activePdf().y,before:JSON.stringify(state)};return;}
  if(tool==='multi'){if(moveGroup&&multi.length){drag={type:'group',before:JSON.stringify(state),anchor:from(p),changed:false};hint.textContent='Arraste com a Pencil para mover todas as paredes selecionadas.'}else{selectionRect={a:from(p),b:from(p)};multi=[];selected=null;sizeEditor.style.display='none';hint.textContent='Arraste a Pencil na diagonal para criar um retângulo ao redor das paredes.'}render();return;}
  if(tool==='select'){
-   selected=identify(from(p));updateMeasure();
+   const hit=identify(from(p)),now=Date.now();
+   const doubleTap=hit&&lastSelectTap&&now-lastSelectTap.time<430&&
+      hit.type===lastSelectTap.type&&hit.i===lastSelectTap.i&&
+      Math.hypot(p.x-lastSelectTap.x,p.y-lastSelectTap.y)<24;
+   if(doubleTap){
+     lastSelectTap=null;drag=null;selected=hit;multi=[];moveGroup=false;
+     document.getElementById('removeBtn').click();
+     hint.textContent='Item excluído com toque duplo. Use Desfazer para recuperar.';
+     penActive=null;
+     return;
+   }
+   lastSelectTap=hit?{time:now,type:hit.type,i:hit.i,x:p.x,y:p.y}:null;
+   selected=hit;updateMeasure();
    if(selected)drag={type:selected.type,index:selected.i,before:JSON.stringify(state),anchor:from(p),changed:false};
-   hint.textContent=selected?'Arraste com a Pencil para mover. Para excluir, toque em Apagar item.':'Toque com a Pencil sobre uma parede, porta, janela ou móvel.';
+   hint.textContent=selected?'Toque duas vezes para excluir, ou arraste com a Pencil para mover.':'Toque com a Pencil sobre uma parede, porta, portão, janela ou móvel.';
    render();
- }else place(p);
+ }else{lastSelectTap=null;place(p);}
 });
 canvas.addEventListener('pointermove',e=>{const p=pointer(e);
  if(e.pointerType==='touch'){
@@ -188,7 +202,7 @@ function endPointer(e){if(e.pointerType==='touch'){if(pdfMoveMode&&activePdf()&&
  if(penActive!==e.pointerId)return;penActive=null;
  if(pdfMoveDrag){if(Math.hypot(activePdf().x-pdfMoveDrag.x,activePdf().y-pdfMoveDrag.y)>.001){history.push(pdfMoveDrag.before);store()}pdfMoveDrag=null;return;}
  if(selectionRect){multi=selectRectangle(selectionRect);selectionRect=null;moveGroup=multi.length>0;measure.textContent=multi.length+' elementos selecionados';hint.textContent=multi.length?'Conjunto selecionado: '+multi.length+' elementos. Arraste com a Pencil para mover ou abra Selecionar ▾ e toque em Apagar conjunto.':'Nenhum elemento inteiramente dentro do retângulo. Desenhe um retângulo maior envolvendo as duas pontas das paredes.';render();}
- if(drag){if(drag.changed){history.push(drag.before);if(history.length>60)history.shift();store();}drag=null;}
+ if(drag){if(drag.changed){lastSelectTap=null;history.push(drag.before);if(history.length>60)history.shift();store();}drag=null;}
 }
 canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
 canvas.addEventListener('wheel',e=>{e.preventDefault();const p=pointer(e),m=from(p);pxm=Math.max(18,Math.min(250,pxm*Math.exp(-e.deltaY*.002)));origin={x:p.x-m.x*pxm,y:p.y-m.y*pxm};render()},{passive:false});
